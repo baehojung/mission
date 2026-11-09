@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐹 햄스터봇 미션 채점기 🏁</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Jua, Gowun Dodum) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti for victory animations -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        hamster: {
+                            light: '#FEFCE8',
+                            yellow: '#FFD15C',
+                            amber: '#F59E0B',
+                            orange: '#FF9F43',
+                            brown: '#8C533A',
+                            green: '#10B981',
+                            blue: '#3B82F6'
+                        }
+                    },
+                    fontFamily: {
+                        jua: ['Jua', 'sans-serif'],
+                        gowun: ['Gowun Dodum', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Gowun Dodum', sans-serif;
+            background-color: #FEFCE8;
+            background-image: radial-gradient(#FDE047 1.8px, transparent 1.8px);
+            background-size: 24px 24px;
+        }
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+        .btn-bounce {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .btn-bounce:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 0 rgba(0,0,0,0.15) !important;
+        }
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FEFCE8;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #FACC15;
+            border-radius: 10px;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.7); }
+        }
+        .podium-gold {
+            animation: pulse-glow 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-12 select-none">
+
+    <!-- App Container -->
+    <div id="app" class="max-w-4xl mx-auto px-4 py-6">
+        
+        <!-- Header Card -->
+        <header class="text-center mb-6 bg-white border-4 border-amber-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-3 relative">
+                <div class="inline-block bg-amber-100/80 text-amber-900 border border-amber-300/60 px-4 py-1 rounded-full text-xs sm:text-sm font-jua">
+                    ✨ 호정쌤과 함께 하는 즐거운 정보수업 ✨
+                </div>
+                <!-- Realtime Cloud Sync Status Badge -->
+                <div id="cloud-status-badge" class="text-xs font-jua sm:absolute sm:right-0">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        <i class="fa-solid fa-spinner animate-spin"></i> 클라우드 연결 확인 중...
+                    </span>
+                </div>
+            </div>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-jua text-slate-900 tracking-tight flex items-center justify-center gap-2">
+                <span>🐹</span> 햄스터봇 미션 채점기 <span>🏁</span>
+            </h1>
+            <p class="text-slate-500 text-xs sm:text-sm font-semibold mt-2">
+                모든 학급 및 기기의 채점 결과가 실시간으로 클라우드에 공유·저장됩니다!
+            </p>
+
+            <!-- Mode Switch Tabs -->
+            <div class="flex justify-center mt-5 gap-3">
+                <button id="tab-judge" onclick="switchTab('judge')" class="px-5 py-2.5 rounded-2xl font-jua text-base sm:text-lg flex items-center gap-2 bg-amber-500 text-white shadow-md btn-bounce">
+                    <i class="fa-solid fa-clipboard-check"></i> 조별 채점하기
+                </button>
+                <button id="tab-leaderboard" onclick="switchTab('leaderboard')" class="px-5 py-2.5 rounded-2xl font-jua text-base sm:text-lg flex items-center gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200 transition btn-bounce border border-amber-300">
+                    <i class="fa-solid fa-trophy text-amber-600"></i> 실시간 랭킹 전광판
+                </button>
+            </div>
+        </header>
+
+        <!-- VIEW 1: JUDGE / SCORING SECTION -->
+        <div id="view-judge" class="space-y-6">
+            
+            <!-- Step Progress Indicator -->
+            <div class="bg-white border-2 border-amber-200/80 rounded-2xl p-3 shadow-sm flex items-center justify-between text-xs md:text-sm font-jua gap-2">
+                <div id="step-pill-1" class="flex-1 text-center py-2 px-1 rounded-xl bg-amber-500 text-white font-bold transition-all shadow">
+                    1️⃣ 반 선택
+                </div>
+                <div class="text-amber-300"><i class="fa-solid fa-chevron-right text-xs"></i></div>
+                <div id="step-pill-2" class="flex-1 text-center py-2 px-1 rounded-xl bg-slate-100 text-slate-400 transition-all">
+                    2️⃣ 조 선택
+                </div>
+                <div class="text-amber-300"><i class="fa-solid fa-chevron-right text-xs"></i></div>
+                <div id="step-pill-3" class="flex-1 text-center py-2 px-1 rounded-xl bg-slate-100 text-slate-400 transition-all">
+                    3️⃣ 미션 채점
+                </div>
+            </div>
+
+            <!-- STEP 1: CLASS SELECTION CARD -->
+            <section id="step-1-card" class="bg-white border-4 border-amber-200 rounded-3xl p-6 shadow-sm transition-all">
+                <h2 class="text-2xl font-jua text-amber-950 mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-school text-amber-500"></i> 1단계: 반을 선택하세요
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-500 mb-4 font-semibold">수업을 진행하는 학급을 먼저 터치해 주세요.</p>
+
+                <div class="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-5 gap-3" id="class-buttons-container">
+                    <!-- Dynamic Class Buttons (1반~10반) -->
+                </div>
+            </section>
+
+            <!-- STEP 2: GROUP SELECTION CARD -->
+            <section id="step-2-card" class="bg-white border-4 border-amber-200 rounded-3xl p-6 shadow-sm hidden transition-all">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h2 class="text-2xl font-jua text-amber-950 flex items-center gap-2">
+                            <i class="fa-solid fa-users text-amber-500"></i> 2단계: 채점할 조를 선택하세요
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-500 font-semibold mt-1">
+                            선택된 학급: <span id="selected-class-badge" class="px-3 py-1 rounded-xl text-white font-jua bg-amber-500 text-base">1반</span>
+                        </p>
+                    </div>
+                    <button onclick="goToStep(1)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-xl border border-slate-300 transition flex items-center gap-1 font-jua btn-bounce">
+                        <i class="fa-solid fa-arrow-left"></i> 다른 반 선택하기
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3" id="group-buttons-container">
+                    <!-- Dynamic Group Buttons (1조~6조) -->
+                </div>
+            </section>
+
+            <!-- STEP 3: MISSIONS LIST CARD -->
+            <section id="step-3-card" class="bg-white border-4 border-amber-200 rounded-3xl p-6 shadow-sm hidden transition-all">
+                
+                <!-- Selected Group Info Banner -->
+                <div id="selected-group-banner" class="mb-6 p-4 rounded-2xl bg-amber-50/70 border-2 border-amber-200/80 flex flex-wrap justify-between items-center gap-3">
+                    <div class="flex items-center gap-3">
+                        <span class="text-4xl">🐹</span>
+                        <div>
+                            <span class="text-xs text-amber-800 font-bold block">현재 채점 진행 중</span>
+                            <span id="current-group-display" class="text-2xl font-jua text-amber-950">1반 - 1조</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-right">
+                            <span class="text-xs text-amber-800 font-bold block">현재 누적 점수</span>
+                            <div class="text-3xl font-jua text-emerald-600">
+                                <span id="current-score-display">0</span> <span class="text-lg text-slate-400">/ 110점</span>
+                            </div>
+                        </div>
+                        <button onclick="goToStep(2)" class="text-xs bg-white text-slate-600 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1 font-jua shadow-sm btn-bounce">
+                            ← 다른 조 선택
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-5">
+                    <div>
+                        <h2 class="text-2xl font-jua text-amber-950 flex items-center gap-2">
+                            <span>🏁</span> 미션 채점 표
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-400 mt-0.5">미션 성공 시 [성공], 실패 시 [실패]를 눌러주세요.</p>
+                    </div>
+                    <button onclick="resetCurrentGroupMissions()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-xl border border-slate-200 transition flex items-center gap-1 font-jua">
+                        <i class="fa-solid fa-rotate-left"></i> 초기화
+                    </button>
+                </div>
+
+                <!-- Mission Cards Container -->
+                <div class="grid grid-cols-1 gap-3.5" id="missions-container">
+                    <!-- Missions loaded via JS -->
+                </div>
+
+                <!-- Complete / Submit Button -->
+                <div class="mt-8 pt-4 border-t-2 border-dashed border-amber-200 text-center flex justify-center">
+                    <button id="submit-score-btn" onclick="finishAndSubmitScore()" class="px-8 py-3.5 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-jua text-xl sm:text-2xl rounded-full shadow-lg border-2 border-emerald-400 transition btn-bounce flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-circle-check text-yellow-300"></i> 미션 종료 & 점수 등록하기!
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- VIEW 2: LEADERBOARD SECTION -->
+        <div id="view-leaderboard" class="hidden space-y-6">
+            
+            <section class="bg-white border-4 border-amber-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
+                <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-3xl font-jua text-amber-950 flex items-center gap-2">
+                            <i class="fa-solid fa-trophy text-amber-500"></i> 실시간 랭킹 전광판
+                        </h2>
+                        <p class="text-sm text-slate-500">전체 반 또는 선택한 반의 실시간 기록을 확인할 수 있습니다 🏆</p>
+                    </div>
+                    <!-- Filter & Tools -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-bold text-amber-900">반별 보기:</span>
+                        <select id="leaderboard-class-filter" onchange="renderLeaderboard()" class="font-jua px-3 py-1.5 bg-amber-50 border-2 border-amber-300 rounded-xl text-amber-950 text-sm focus:outline-none">
+                            <option value="ALL">전체 반 보기 (통합 랭킹)</option>
+                            <option value="1반">1반</option>
+                            <option value="2반">2반</option>
+                            <option value="3반">3반</option>
+                            <option value="4반">4반</option>
+                            <option value="5반">5반</option>
+                            <option value="6반">6반</option>
+                            <option value="7반">7반</option>
+                            <option value="8반">8반</option>
+                            <option value="9반">9반</option>
+                            <option value="10반">10반</option>
+                        </select>
+                        <button onclick="exportToCSV()" class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-jua text-xs rounded-xl shadow transition btn-bounce flex items-center gap-1">
+                            <i class="fa-solid fa-file-excel"></i> CSV 엑셀 다운로드
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Top 3 Podium Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" id="podium-container">
+                    <!-- Dynamic Top 3 items -->
+                </div>
+
+                <!-- Full Leaderboard Table -->
+                <div class="overflow-hidden rounded-2xl border-2 border-amber-200">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-amber-100 text-amber-950 font-jua text-base sm:text-lg">
+                                <th class="p-3.5 text-center">순위</th>
+                                <th class="p-3.5">반 / 조 이름</th>
+                                <th class="p-3.5 text-center">완수 미션</th>
+                                <th class="p-3.5 text-right">총 점수</th>
+                                <th class="p-3.5 text-center">기록 시간</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-table-body" class="divide-y divide-amber-100 font-medium text-sm">
+                            <!-- Dynamic Table Rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mission Summary Map Reference -->
+                <div class="mt-8 bg-amber-50/60 p-5 rounded-2xl border border-amber-200">
+                    <h3 class="font-jua text-amber-950 text-lg mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-amber-600"></i> 미션 요약 및 배점표
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs text-center">
+                        <div class="bg-white p-2.5 rounded-xl border border-blue-200 shadow-sm">
+                            <span class="font-bold text-blue-600 block">1구간 (20점)</span>
+                            <span>⚡ 스피드런</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-xl border border-rose-200 shadow-sm">
+                            <span class="font-bold text-rose-600 block">2구간 (20점)</span>
+                            <span>💡 라이트쇼</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-xl border border-emerald-200 shadow-sm">
+                            <span class="font-bold text-emerald-600 block">3구간 (20점)</span>
+                            <span>🔄 원형교차로 통과</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-xl border border-purple-200 shadow-sm">
+                            <span class="font-bold text-purple-600 block">4구간 (10점)</span>
+                            <span>〰️ 검은선 따라가기</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-xl border border-orange-200 shadow-sm">
+                            <span class="font-bold text-orange-600 block">5구간 (20점)</span>
+                            <span>🚧 장애물 피하기</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-xl border border-amber-200 shadow-sm">
+                            <span class="font-bold text-amber-800 block">6구간 (20점)</span>
+                            <span>🎵 교가와 골인</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </div>
+
+    <!-- RESULT MODAL POPUP -->
+    <div id="result-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white border-4 border-amber-300 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center transform transition-all scale-95 opacity-0 duration-200" id="result-modal-card">
+            <div class="text-6xl mb-2 animate-bounce" id="modal-emoji">🎉</div>
+            <h3 class="text-3xl font-jua text-amber-950 mb-1" id="modal-title">축하합니다!</h3>
+            <p class="text-slate-600 text-sm mb-4" id="modal-subtitle">1조의 햄스터봇 미션 완수 결과</p>
+            
+            <!-- Score Badge Box -->
+            <div class="bg-amber-50 rounded-2xl p-6 border-2 border-amber-200 mb-6">
+                <span class="text-xs text-amber-800 font-bold block uppercase tracking-wider mb-1">최종 획득 점수</span>
+                <div class="text-5xl font-jua text-amber-950">
+                    <span id="modal-final-score">100</span> <span class="text-2xl text-amber-600">점</span>
+                </div>
+                <div class="mt-3 inline-block px-4 py-1.5 rounded-full text-xs font-bold font-jua text-white bg-amber-500 shadow" id="modal-grade-badge">
+                    🏆 전설의 햄스터 드라이버!
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex gap-2">
+                <button onclick="closeModalAndGoToLeaderboard()" class="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-jua text-lg rounded-xl transition btn-bounce shadow">
+                    <i class="fa-solid fa-trophy"></i> 랭킹 확인하기
+                </button>
+                <button onclick="closeModalAndNextGroup()" class="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-jua text-sm rounded-xl transition btn-bounce border border-slate-300">
+                    다음 조 채점
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEACHER PASSWORD MODAL FOR RESET -->
+    <div id="password-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white border-4 border-amber-300 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center transform transition-all">
+            <div class="text-4xl mb-2">🔒</div>
+            <h3 class="text-2xl font-jua text-amber-950 mb-1">교사 인증 비밀번호</h3>
+            <p class="text-xs text-slate-500 mb-4 font-semibold">초기화 및 기존 채점 기록을 삭제하려면<br>비밀번호를 입력해 주세요.</p>
+            
+            <input type="password" id="reset-password-input" maxlength="4" placeholder="비밀번호 4자리" onkeydown="if(event.key==='Enter') confirmResetWithPassword()" class="w-full text-center text-2xl font-jua tracking-widest px-4 py-3 rounded-xl border-2 border-amber-300 focus:outline-none focus:border-amber-500 mb-2 bg-amber-50/50">
+            <p id="password-error-msg" class="text-xs text-rose-500 font-bold mb-3 hidden">비밀번호가 올바르지 않습니다. (비밀번호: 9786)</p>
+
+            <div class="flex gap-2 mt-2">
+                <button onclick="closePasswordModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-jua text-sm rounded-xl border border-slate-300 btn-bounce">
+                    취소
+                </button>
+                <button onclick="confirmResetWithPassword()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-jua text-sm rounded-xl shadow btn-bounce">
+                    확인 및 삭제
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Toast Notice -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white font-jua px-6 py-3 rounded-2xl shadow-xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2">
+        <span id="toast-icon">✨</span> <span id="toast-message">알림 메시지</span>
+    </div>
+
+    <!-- Firebase Module Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'hamster-bot-scoring-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+
+        async function initCloudSync() {
+            const badge = document.getElementById('cloud-status-badge');
+
+            if (!firebaseConfig) {
+                console.warn("Firebase config missing. Running in local storage mode.");
+                if (badge) {
+                    badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-floppy-disk"></i> 로컬 저장 모드</span>`;
+                }
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Rule 3: Auth Before Queries
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        if (badge) {
+                            badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-wifi text-emerald-500 animate-pulse"></i> 클라우드 실시간 동기화 중</span>`;
+                        }
+                        listenToLiveScores();
+                    }
+                });
+            } catch (err) {
+                console.error("Firebase Auth/Firestore initialization failed:", err);
+                if (badge) {
+                    badge.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-triangle-exclamation"></i> 동기화 오류 (로컬 전용)</span>`;
+                }
+            }
+        }
+
+        function listenToLiveScores() {
+            if (!db || !currentUser) return;
+            // Rule 1: Strict Paths - /artifacts/{appId}/public/data/scores
+            const scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'scores');
+            
+            onSnapshot(scoresRef, (snapshot) => {
+                const liveData = {};
+                snapshot.forEach(docSnap => {
+                    liveData[docSnap.id] = docSnap.data();
+                });
+                
+                window.scoresState = liveData;
+                localStorage.setItem('hamster_scores', JSON.stringify(liveData));
+
+                if (window.renderLeaderboard) window.renderLeaderboard();
+                if (window.renderGroupButtons && window.currentStep === 2) window.renderGroupButtons();
+            }, (error) => {
+                console.error("Firestore onSnapshot error:", error);
+            });
+        }
+
+        window.saveGroupScoreToCloud = async function(groupId, groupData) {
+            // Optimistic local update
+            window.scoresState[groupId] = groupData;
+            localStorage.setItem('hamster_scores', JSON.stringify(window.scoresState));
+
+            if (window.renderLeaderboard) window.renderLeaderboard();
+            if (window.renderGroupButtons && window.currentStep === 2) window.renderGroupButtons();
+
+            if (db && currentUser) {
+                try {
+                    // Rule 1: Strict Document Path
+                    const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'scores', groupId);
+                    await setDoc(scoreDocRef, groupData);
+                    console.log("Cloud save successful for:", groupId);
+                } catch (err) {
+                    console.error("Cloud save error:", err);
+                    if (window.showToast) window.showToast('클라우드 저장 중 오류가 발생했습니다.', '⚠️');
+                }
+            }
+        };
+
+        window.deleteGroupScoreFromCloud = async function(groupId) {
+            delete window.scoresState[groupId];
+            localStorage.setItem('hamster_scores', JSON.stringify(window.scoresState));
+
+            if (window.renderLeaderboard) window.renderLeaderboard();
+            if (window.renderGroupButtons && window.currentStep === 2) window.renderGroupButtons();
+
+            if (db && currentUser) {
+                try {
+                    const scoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'scores', groupId);
+                    await deleteDoc(scoreDocRef);
+                    console.log("Cloud delete successful for:", groupId);
+                } catch (err) {
+                    console.error("Cloud delete error:", err);
+                    if (window.showToast) window.showToast('클라우드 삭제 중 오류가 발생했습니다.', '⚠️');
+                }
+            }
+        };
+
+        // Initialize Firebase on load
+        initCloudSync();
+    </script>
+
+    <script>
+        // 10 Classes Configuration
+        const CLASSES = [
+            { id: '1반', name: '1반', color: 'bg-rose-500 text-white border-rose-600' },
+            { id: '2반', name: '2반', color: 'bg-amber-500 text-white border-amber-600' },
+            { id: '3반', name: '3반', color: 'bg-emerald-500 text-white border-emerald-600' },
+            { id: '4반', name: '4반', color: 'bg-sky-500 text-white border-sky-600' },
+            { id: '5반', name: '5반', color: 'bg-indigo-500 text-white border-indigo-600' },
+            { id: '6반', name: '6반', color: 'bg-fuchsia-500 text-white border-fuchsia-600' },
+            { id: '7반', name: '7반', color: 'bg-teal-500 text-white border-teal-600' },
+            { id: '8반', name: '8반', color: 'bg-cyan-500 text-white border-cyan-600' },
+            { id: '9반', name: '9반', color: 'bg-violet-500 text-white border-violet-600' },
+            { id: '10반', name: '10반', color: 'bg-pink-500 text-white border-pink-600' }
+        ];
+
+        const TOTAL_GROUPS = 6;
+
+        // Missions Specification
+        const MISSIONS = [
+            { id: 'm1', num: 1, title: '스피드런', desc: '3초 이내 빠르게 통과하기 (스톱워치 활용)', points: 20, icon: '⚡', type: '필수', borderColor: 'border-blue-400', badgeColor: 'bg-blue-500', timer: true },
+            { id: 'm2', num: 2, title: '라이트쇼', desc: '빨강 ➔ 파랑 ➔ 초록 순서로 LED 통과하기', points: 20, icon: '💡', type: '필수', borderColor: 'border-rose-300', badgeColor: 'bg-rose-500' },
+            { id: 'm3', num: 3, title: '원형교차로 통과', desc: '회전교차로를 안전하게 360도 완바퀴 돌기', points: 20, icon: '🔄', type: '필수', borderColor: 'border-emerald-300', badgeColor: 'bg-emerald-500' },
+            { id: 'm4', num: 4, title: '선택 - 검은선 따라가기', desc: '검은 선을 따라 완주하면 득점! (실패시도 계속 진행)', points: 10, icon: '〰️', type: '선택', borderColor: 'border-purple-300', badgeColor: 'bg-purple-500' },
+            { id: 'm5', num: 5, title: '선택 - 장애물 피하기', desc: '장애물에 부딪히지 않고 무사히 통과하면 득점!', points: 20, icon: '🚧', type: '선택', borderColor: 'border-orange-300', badgeColor: 'bg-orange-500' },
+            { id: 'm6', num: 6, title: '교가와 함께 골인', desc: '교가를 연주하며 골인 지점까지 주행!', points: 20, icon: '🎵', type: '필수', borderColor: 'border-amber-300', badgeColor: 'bg-amber-600' }
+        ];
+
+        // Active State Variables
+        let currentSelectedClass = '1반';
+        let currentSelectedGroupId = '1조';
+        let currentStep = 1;
+        let currentGroupMissionStatus = {
+            m1: false, m2: false, m3: false, m4: false, m5: false, m6: false
+        };
+
+        // CSV Export Function for Teachers
+        window.exportToCSV = function() {
+            const allScores = Object.values(window.scoresState || {});
+            if (allScores.length === 0) {
+                showToast('다운로드할 채점 기록이 없습니다.', '⚠️');
+                return;
+            }
+
+            allScores.sort((a, b) => {
+                if (a.classId !== b.classId) return a.classId.localeCompare(b.classId, 'ko');
+                return (a.groupId || '').localeCompare(b.groupId || '', 'ko');
+            });
+
+            let csvContent = "\uFEFF학급,조,총점수,완수미션수,기록시간\n";
+            allScores.forEach(s => {
+                csvContent += `"${s.classId}","${s.groupId}",${s.totalScore},${s.passedCount},"${s.timeFormatted || ''}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `햄스터봇_채점결과_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('채점 결과 엑셀(CSV) 파일이 다운로드 되었습니다!', '📊');
+        };
+
+        // Speedrun Stopwatch Variables
+        let timerInterval = null;
+        let timerStartTime = 0;
+        let timerElapsedTime = 0;
+        let isTimerRunning = false;
+
+        // Scores State
+        window.scoresState = JSON.parse(localStorage.getItem('hamster_scores') || '{}');
+
+        // Init App on DOM Load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderClassButtons();
+            renderMissions();
+            renderLeaderboard();
+            selectClass('1반');
+            selectGroup('1조');
+            goToStep(1);
+        });
+
+        // Tab Switching Logic
+        window.switchTab = function(tabName) {
+            const viewJudge = document.getElementById('view-judge');
+            const viewLeaderboard = document.getElementById('view-leaderboard');
+            const btnJudge = document.getElementById('tab-judge');
+            const btnLeaderboard = document.getElementById('tab-leaderboard');
+
+            if (tabName === 'judge') {
+                viewJudge.classList.remove('hidden');
+                viewLeaderboard.classList.add('hidden');
+                btnJudge.className = 'px-5 py-2.5 rounded-2xl font-jua text-base sm:text-lg flex items-center gap-2 bg-amber-500 text-white shadow-md btn-bounce';
+                btnLeaderboard.className = 'px-5 py-2.5 rounded-2xl font-jua text-base sm:text-lg flex items-center gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200 transition btn-bounce border border-amber-300';
+                goToStep(2); // Direct to step 2 (Group selection) when clicking '조별 채점하기'
+            } else {
+                viewJudge.classList.add('hidden');
+                viewLeaderboard.classList.remove('hidden');
+                btnLeaderboard.className = 'px-5 py-2.5 rounded-2xl font-jua text-base sm:text-lg flex items-center gap-2 bg-amber-500 text-white shadow-md btn-bounce';
+                btnJudge.className = 'px-5 py-2.5 rounded-2xl font-jua text-base sm:text-lg flex items-center gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200 transition btn-bounce border border-amber-300';
+                renderLeaderboard();
+            }
+        };
+
+        // Step Navigation Logic
+        window.goToStep = function(step) {
+            currentStep = step;
+            window.currentStep = step;
+
+            const card1 = document.getElementById('step-1-card');
+            const card2 = document.getElementById('step-2-card');
+            const card3 = document.getElementById('step-3-card');
+
+            const pill1 = document.getElementById('step-pill-1');
+            const pill2 = document.getElementById('step-pill-2');
+            const pill3 = document.getElementById('step-pill-3');
+
+            // Update Step Indicator Pills
+            if (pill1 && pill2 && pill3) {
+                if (step === 1) {
+                    pill1.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-amber-500 text-white font-bold transition-all shadow';
+                    pill2.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-slate-100 text-slate-400 transition-all';
+                    pill3.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-slate-100 text-slate-400 transition-all';
+                } else if (step === 2) {
+                    pill1.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold transition-all';
+                    pill2.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-amber-500 text-white font-bold transition-all shadow';
+                    pill3.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-slate-100 text-slate-400 transition-all';
+                } else {
+                    pill1.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold transition-all';
+                    pill2.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold transition-all';
+                    pill3.className = 'flex-1 text-center py-2 px-1 rounded-xl bg-amber-500 text-white font-bold transition-all shadow';
+                }
+            }
+
+            if (step === 1) {
+                card1.classList.remove('hidden');
+                card2.classList.add('hidden');
+                card3.classList.add('hidden');
+            } else if (step === 2) {
+                card1.classList.add('hidden');
+                card2.classList.remove('hidden');
+                card3.classList.add('hidden');
+                renderGroupButtons();
+            } else if (step === 3) {
+                card1.classList.add('hidden');
+                card2.classList.add('hidden');
+                card3.classList.remove('hidden');
+            }
+        };
+
+        window.renderClassButtons = function() {
+            const container = document.getElementById('class-buttons-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            CLASSES.forEach(cls => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `p-4 rounded-2xl border-2 font-jua flex flex-col items-center justify-center transition btn-bounce ${cls.color} shadow-sm hover:brightness-105`;
+                btn.onclick = () => selectClass(cls.id);
+                btn.innerHTML = `
+                    <span class="text-2xl mb-1">🏫</span>
+                    <span class="text-xl">${cls.name}</span>
+                `;
+                container.appendChild(btn);
+            });
+        };
+
+        window.selectClass = function(classId) {
+            currentSelectedClass = classId;
+            const badgeElem = document.getElementById('selected-class-badge');
+            if (badgeElem) {
+                badgeElem.innerText = classId;
+            }
+            goToStep(2);
+        };
+
+        window.renderGroupButtons = function() {
+            const container = document.getElementById('group-buttons-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            for (let i = 1; i <= TOTAL_GROUPS; i++) {
+                const groupId = `${i}조`;
+                const fullKey = `${currentSelectedClass}_${groupId}`;
+                const groupData = window.scoresState[fullKey];
+                const hasScored = !!groupData;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `p-4 rounded-2xl border-2 font-jua flex flex-col items-center justify-center transition btn-bounce relative shadow-sm ${hasScored ? 'bg-amber-100 text-amber-950 border-amber-300' : 'bg-amber-50/50 text-slate-800 border-amber-200 hover:bg-amber-100'}`;
+                btn.onclick = () => selectGroup(groupId);
+
+                btn.innerHTML = `
+                    <span class="text-2xl mb-1">🐹</span>
+                    <span class="text-xl">${i}조</span>
+                    ${hasScored ? `<span class="text-xs font-bold font-gowun mt-1 text-amber-900 bg-white/80 px-2 py-0.5 rounded-md">${groupData.totalScore}점</span>` : `<span class="text-xs text-slate-400 mt-1">미채점</span>`}
+                `;
+                container.appendChild(btn);
+            }
+        };
+
+        window.selectGroup = function(groupId) {
+            currentSelectedGroupId = groupId;
+            const fullKey = `${currentSelectedClass}_${groupId}`;
+            
+            if (window.scoresState[fullKey] && window.scoresState[fullKey].missions) {
+                currentGroupMissionStatus = { ...window.scoresState[fullKey].missions };
+            } else {
+                currentGroupMissionStatus = { m1: false, m2: false, m3: false, m4: false, m5: false, m6: false };
+            }
+
+            const groupDisplay = document.getElementById('current-group-display');
+            if (groupDisplay) {
+                groupDisplay.innerText = `${currentSelectedClass} - ${currentSelectedGroupId}`;
+            }
+
+            resetStopwatch();
+            updateScoreUI();
+            goToStep(3);
+        };
+
+        window.renderMissions = function() {
+            const container = document.getElementById('missions-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            MISSIONS.forEach((m) => {
+                const isPassed = currentGroupMissionStatus[m.id];
+                const card = document.createElement('div');
+                card.id = `mission-card-${m.id}`;
+                card.className = `p-4 rounded-2xl border-2 bg-white transition-all shadow-sm ${m.borderColor} flex flex-col md:flex-row md:items-center justify-between gap-3`;
+
+                card.innerHTML = `
+                    <div class="flex items-start gap-3 flex-1">
+                        <div class="w-10 h-10 rounded-xl ${m.badgeColor} text-white flex items-center justify-center text-xl shrink-0 font-jua shadow-sm">
+                            ${m.icon}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-jua text-lg text-slate-900">${m.num}구간: ${m.title}</span>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded-md ${m.type === '필수' ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-purple-100 text-purple-700 border border-purple-200'}">
+                                    ${m.type} (${m.points}점)
+                                </span>
+                            </div>
+                            <p class="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">${m.desc}</p>
+                            
+                            ${m.timer ? `
+                            <div class="mt-2 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 px-3 rounded-xl">
+                                <i class="fa-solid fa-stopwatch text-blue-500"></i>
+                                <span id="stopwatch-display" class="font-jua text-lg text-slate-800 tracking-wider">0.00초</span>
+                                <div class="flex gap-1 ml-2">
+                                    <button onclick="toggleStopwatch()" id="btn-timer-toggle" class="px-2.5 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-jua rounded-lg transition btn-bounce">시작</button>
+                                    <button onclick="resetStopwatch()" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-jua rounded-lg transition btn-bounce">리셋</button>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0 self-end md:self-center mt-2 md:mt-0">
+                        <button onclick="setMissionStatus('${m.id}', true)" id="btn-pass-${m.id}" class="px-4 py-2 rounded-xl font-jua text-sm transition btn-bounce flex items-center gap-1 ${isPassed ? 'bg-emerald-500 text-white shadow' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}">
+                            <i class="fa-solid fa-circle-check"></i> 성공 (+${m.points}점)
+                        </button>
+                        <button onclick="setMissionStatus('${m.id}', false)" id="btn-fail-${m.id}" class="px-4 py-2 rounded-xl font-jua text-sm transition btn-bounce flex items-center gap-1 ${!isPassed ? 'bg-rose-500 text-white shadow' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}">
+                            <i class="fa-solid fa-circle-xmark"></i> 실패 (0점)
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        };
+
+        window.setMissionStatus = function(missionId, status) {
+            currentGroupMissionStatus[missionId] = status;
+            updateScoreUI();
+        };
+
+        window.updateScoreUI = function() {
+            let total = 0;
+            MISSIONS.forEach(m => {
+                const passed = currentGroupMissionStatus[m.id];
+                if (passed) total += m.points;
+
+                const passBtn = document.getElementById(`btn-pass-${m.id}`);
+                const failBtn = document.getElementById(`btn-fail-${m.id}`);
+
+                if (passBtn && failBtn) {
+                    if (passed) {
+                        passBtn.className = 'px-4 py-2 rounded-xl font-jua text-sm transition btn-bounce flex items-center gap-1 bg-emerald-500 text-white shadow-md ring-2 ring-emerald-300';
+                        failBtn.className = 'px-4 py-2 rounded-xl font-jua text-sm transition btn-bounce flex items-center gap-1 bg-slate-100 text-slate-400 hover:bg-slate-200';
+                    } else {
+                        passBtn.className = 'px-4 py-2 rounded-xl font-jua text-sm transition btn-bounce flex items-center gap-1 bg-slate-100 text-slate-400 hover:bg-slate-200';
+                        failBtn.className = 'px-4 py-2 rounded-xl font-jua text-sm transition btn-bounce flex items-center gap-1 bg-rose-500 text-white shadow-md ring-2 ring-rose-300';
+                    }
+                }
+            });
+
+            const scoreDisplay = document.getElementById('current-score-display');
+            if (scoreDisplay) scoreDisplay.innerText = total;
+        };
+
+        window.toggleStopwatch = function() {
+            const btn = document.getElementById('btn-timer-toggle');
+            if (!isTimerRunning) {
+                // Start Timer
+                isTimerRunning = true;
+                timerStartTime = Date.now() - timerElapsedTime;
+                if (btn) {
+                    btn.innerText = '정지';
+                    btn.className = 'px-2.5 py-1 bg-rose-500 hover:bg-rose-600 text-white text-xs font-jua rounded-lg transition btn-bounce';
+                }
+                timerInterval = setInterval(() => {
+                    timerElapsedTime = Date.now() - timerStartTime;
+                    const sec = (timerElapsedTime / 1000).toFixed(2);
+                    const disp = document.getElementById('stopwatch-display');
+                    if (disp) disp.innerText = `${sec}초`;
+                }, 30);
+            } else {
+                // Stop Timer
+                isTimerRunning = false;
+                clearInterval(timerInterval);
+                if (btn) {
+                    btn.innerText = '시작';
+                    btn.className = 'px-2.5 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-jua rounded-lg transition btn-bounce';
+                }
+                const secNum = timerElapsedTime / 1000;
+                if (secNum > 0 && secNum <= 3.0) {
+                    setMissionStatus('m1', true);
+                    showToast('⚡ 3초 이내 통과! 스피드런 미션 성공!', '🎉');
+                } else if (secNum > 3.0) {
+                    setMissionStatus('m1', false);
+                    showToast('⌛ 3초를 초과하여 스피드런 미션에 실패하였습니다.', '😅');
+                }
+            }
+        };
+
+        window.resetStopwatch = function() {
+            isTimerRunning = false;
+            clearInterval(timerInterval);
+            timerElapsedTime = 0;
+            const disp = document.getElementById('stopwatch-display');
+            if (disp) disp.innerText = '0.00초';
+            const btn = document.getElementById('btn-timer-toggle');
+            if (btn) {
+                btn.innerText = '시작';
+                btn.className = 'px-2.5 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-jua rounded-lg transition btn-bounce';
+            }
+        };
+
+        window.resetCurrentGroupMissions = function() {
+            const modal = document.getElementById('password-modal');
+            const input = document.getElementById('reset-password-input');
+            const errorMsg = document.getElementById('password-error-msg');
+            if (input) input.value = '';
+            if (errorMsg) errorMsg.classList.add('hidden');
+            if (modal) modal.classList.remove('hidden');
+            setTimeout(() => input?.focus(), 100);
+        };
+
+        window.closePasswordModal = function() {
+            const modal = document.getElementById('password-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.confirmResetWithPassword = async function() {
+            const input = document.getElementById('reset-password-input');
+            const errorMsg = document.getElementById('password-error-msg');
+            
+            if (input && input.value === '9786') {
+                closePasswordModal();
+                
+                currentGroupMissionStatus = { m1: false, m2: false, m3: false, m4: false, m5: false, m6: false };
+                resetStopwatch();
+                updateScoreUI();
+                
+                const fullKey = `${currentSelectedClass}_${currentSelectedGroupId}`;
+                await window.deleteGroupScoreFromCloud(fullKey);
+                
+                showToast('채점표와 이전 기록이 모두 초기화 및 삭제되었습니다.', '🧹');
+            } else {
+                if (errorMsg) errorMsg.classList.remove('hidden');
+            }
+        };
+
+        window.finishAndSubmitScore = async function() {
+            let total = 0;
+            let passedCount = 0;
+
+            MISSIONS.forEach(m => {
+                if (currentGroupMissionStatus[m.id]) {
+                    total += m.points;
+                    passedCount++;
+                }
+            });
+
+            const now = new Date();
+            const timeFormatted = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+            const fullKey = `${currentSelectedClass}_${currentSelectedGroupId}`;
+            const groupData = {
+                classId: currentSelectedClass,
+                groupId: currentSelectedGroupId,
+                groupName: `${currentSelectedClass} - ${currentSelectedGroupId}`,
+                totalScore: total,
+                passedCount: passedCount,
+                missions: { ...currentGroupMissionStatus },
+                timeFormatted: timeFormatted,
+                timestamp: Date.now()
+            };
+
+            // Save to cloud or local state
+            await window.saveGroupScoreToCloud(fullKey, groupData);
+
+            // Setup Modal Display
+            const modal = document.getElementById('result-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalSubtitle = document.getElementById('modal-subtitle');
+            const modalScore = document.getElementById('modal-final-score');
+            const modalBadge = document.getElementById('modal-grade-badge');
+            const modalEmoji = document.getElementById('modal-emoji');
+
+            if (modalSubtitle) modalSubtitle.innerText = `${currentSelectedClass} ${currentSelectedGroupId} 미션 완수 결과`;
+            if (modalScore) modalScore.innerText = total;
+
+            if (total === 110) {
+                if (modalEmoji) modalEmoji.innerText = '🏆';
+                if (modalTitle) modalTitle.innerText = '완벽한 110점!';
+                if (modalBadge) modalBadge.innerText = '👑 전설의 햄스터 드라이버!';
+            } else if (total >= 80) {
+                if (modalEmoji) modalEmoji.innerText = '🥇';
+                if (modalTitle) modalTitle.innerText = '대단해요!';
+                if (modalBadge) modalBadge.innerText = '⭐ 슈퍼 햄스터 마스터!';
+            } else if (total >= 50) {
+                if (modalEmoji) modalEmoji.innerText = '🎉';
+                if (modalTitle) modalTitle.innerText = '수고하셨습니다!';
+                if (modalBadge) modalBadge.innerText = '🚗 베테랑 드라이버';
+            } else {
+                if (modalEmoji) modalEmoji.innerText = '🐹';
+                if (modalTitle) modalTitle.innerText = '좋은 시도였어요!';
+                if (modalBadge) modalBadge.innerText = '🌱 햄스터 루키 Driver';
+            }
+
+            // Confetti effect
+            if (typeof confetti === 'function' && total >= 60) {
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            if (modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    const card = document.getElementById('result-modal-card');
+                    if (card) card.className = 'bg-white border-4 border-amber-300 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center transform transition-all scale-100 opacity-100 duration-200';
+                }, 10);
+            }
+        };
+
+        window.closeModalAndGoToLeaderboard = function() {
+            const modal = document.getElementById('result-modal');
+            if (modal) modal.classList.add('hidden');
+            switchTab('leaderboard');
+        };
+
+        window.closeModalAndNextGroup = function() {
+            const modal = document.getElementById('result-modal');
+            if (modal) modal.classList.add('hidden');
+
+            const currentNum = parseInt(currentSelectedGroupId.replace('조', '')) || 1;
+            if (currentNum < TOTAL_GROUPS) {
+                selectGroup(`${currentNum + 1}조`);
+            } else {
+                goToStep(2);
+            }
+        };
+
+        window.renderLeaderboard = function() {
+            const filter = document.getElementById('leaderboard-class-filter')?.value || 'ALL';
+            const allScores = Object.values(window.scoresState || {});
+
+            let filtered = allScores;
+            if (filter !== 'ALL') {
+                filtered = allScores.filter(s => s.classId === filter);
+            }
+
+            // Sort by totalScore desc, then timestamp asc
+            filtered.sort((a, b) => {
+                if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+                return (a.timestamp || 0) - (b.timestamp || 0);
+            });
+
+            // Render Top 3 Podium
+            const podiumContainer = document.getElementById('podium-container');
+            if (podiumContainer) {
+                podiumContainer.innerHTML = '';
+
+                const top3 = [
+                    { rank: '2등', item: filtered[1], border: 'border-slate-300 bg-slate-50', medal: '🥈', badge: 'Silver' },
+                    { rank: '1등', item: filtered[0], border: 'border-amber-400 bg-amber-50/80 podium-gold', medal: '🥇', badge: 'Gold' },
+                    { rank: '3등', item: filtered[2], border: 'border-amber-700/30 bg-orange-50/60', medal: '🥉', badge: 'Bronze' }
+                ];
+
+                top3.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-2xl border-2 ${p.border} flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden min-h-[140px]`;
+
+                    if (p.item) {
+                        card.innerHTML = `
+                            <span class="text-3xl mb-1">${p.medal}</span>
+                            <span class="text-xs font-bold text-slate-500 uppercase">${p.rank} (${p.item.classId})</span>
+                            <span class="font-jua text-2xl text-slate-900 my-0.5">${p.item.groupName}</span>
+                            <span class="font-jua text-xl text-emerald-600">${p.item.totalScore}점 <span class="text-xs text-slate-400">(${p.item.passedCount}/6개)</span></span>
+                        `;
+                    } else {
+                        card.innerHTML = `
+                            <span class="text-3xl mb-1 text-slate-300">${p.medal}</span>
+                            <span class="text-xs font-bold text-slate-400 uppercase">${p.rank}</span>
+                            <span class="font-jua text-lg text-slate-400 my-1">기록 없음</span>
+                            <span class="text-xs text-slate-300">-</span>
+                        `;
+                    }
+                    podiumContainer.appendChild(card);
+                });
+            }
+
+            const tbody = document.getElementById('leaderboard-table-body');
+            if (tbody) {
+                tbody.innerHTML = '';
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-slate-400 font-jua">
+                                햄스터봇 미션 채점 기록이 아직 없습니다. <br>
+                                [조별 채점하기]에서 점수를 입력해보세요! 🐹
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                filtered.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white hover:bg-amber-50/40' : 'bg-amber-50/20 hover:bg-amber-50/40';
+
+                    let rankBadge = `<span class="font-jua text-base text-slate-700">${index + 1}위</span>`;
+                    if (index === 0) rankBadge = `<span class="text-xl">🥇 1위</span>`;
+                    if (index === 1) rankBadge = `<span class="text-xl">🥈 2위</span>`;
+                    if (index === 2) rankBadge = `<span class="text-xl">🥉 3위</span>`;
+
+                    row.innerHTML = `
+                        <td class="p-3.5 text-center font-jua">${rankBadge}</td>
+                        <td class="p-3.5 font-jua text-base text-slate-900">${item.groupName}</td>
+                        <td class="p-3.5 text-center font-jua text-amber-900">${item.passedCount} / 6개</td>
+                        <td class="p-3.5 text-right font-jua text-lg text-emerald-600">${item.totalScore}점</td>
+                        <td class="p-3.5 text-center text-xs text-slate-400 font-gowun">${item.timeFormatted || '-'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        };
+
+        window.showToast = function(msg, icon = '✨') {
+            const toast = document.getElementById('toast');
+            const msgElem = document.getElementById('toast-message');
+            const iconElem = document.getElementById('toast-icon');
+
+            if (toast && msgElem) {
+                msgElem.innerText = msg;
+                if (iconElem) iconElem.innerText = icon;
+                toast.classList.remove('opacity-0', 'pointer-events-none');
+                toast.classList.add('opacity-100');
+
+                setTimeout(() => {
+                    toast.classList.remove('opacity-100');
+                    toast.classList.add('opacity-0', 'pointer-events-none');
+                }, 2500);
+            }
+        };
+    </script>
+</body>
+</html>
